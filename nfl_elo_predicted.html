@@ -5,10 +5,12 @@
 svg text {
 	fill: #777777;
 }
-h1 {
-	font-size:14;
+body {
 	font-family: sans-serif;
 	color:#777777;
+}
+h1 {
+	font-size:14;
 	text-align:center;
 	margin-bottom:0px;
 }
@@ -33,6 +35,16 @@ li {
 	list-style:none;
 	padding: 2px;	
 }
+#tooltip {
+	position:absolute;
+	padding:2px 4px 2px 4px;
+	visibility:hidden;
+	font-size:12px;
+	background:#444444;
+	color:#ffffff;
+	border-radius:8px;
+	pointer-events:none;
+}
 </style>
 </head>
 <body>
@@ -43,6 +55,7 @@ li {
 <p id='team_name_area'></p>
 </div>
 <div id='pivotContainer'><input type='checkbox' id='displayAllToggle'>Show all</input><ul></ul></div>
+<span id='tooltip'></span>
 </body>
 <script>
 var team_colors = {
@@ -120,10 +133,14 @@ function renderGraph() {
 		});
 	d3.selectAll(".team_series").on("mouseover",function (d,i) { 
 		d3.select(this).select(".prediction_range").style("opacity",.65);
-		d3.select("#team_name_area").text(d["team_name"]);
+		d3.select("#tooltip").text(d["team_name"]);
+		d3.select("#tooltip").style("visibility","visible");
+		d3.select("#tooltip").style("left", (d3.event.pageX) + "px").style("top", (d3.event.pageY - 4) + "px");    
+
 	}).on("mouseleave",function (d,i) {
 		d3.select(this).select(".prediction_range").style("opacity",.4);
-		d3.select("#team_name_area").text("");
+		d3.select("#tooltip").text("");
+		d3.select("#tooltip").style("visibility","hidden");
 	});
 
 	series_selector.exit().remove();
