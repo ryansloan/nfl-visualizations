@@ -45,6 +45,12 @@ li {
 	border-radius:8px;
 	pointer-events:none;
 }
+.caption {
+	margin-left:52px;
+	font-size:11;
+	max-width:480px;
+	text-align:center;
+}
 </style>
 </head>
 <body>
@@ -55,6 +61,7 @@ li {
 <p id='team_name_area'></p>
 </div>
 <div id='pivotContainer'><input type='checkbox' id='displayAllToggle'>Show all</input><ul></ul></div>
+<div class='caption'>Lines represent the <i>average</i> Elo rating in that week of the season. Shaded regions represent the 90% confidence interval over 1000 simulated seasons.</div>
 <span id='tooltip'></span>
 </body>
 <script>
@@ -135,7 +142,7 @@ function renderGraph() {
 		d3.select(this).select(".prediction_range").style("opacity",.65);
 		d3.select("#tooltip").text(d["team_name"]);
 		d3.select("#tooltip").style("visibility","visible");
-		d3.select("#tooltip").style("left", (d3.event.pageX) + "px").style("top", (d3.event.pageY - 4) + "px");    
+		d3.select("#tooltip").style("left", (d3.event.pageX) + "px").style("top", (d3.event.pageY - 8) + "px");    
 
 	}).on("mouseleave",function (d,i) {
 		d3.select(this).select(".prediction_range").style("opacity",.4);
@@ -156,7 +163,7 @@ d3.json("nfl_elo_predicted.json", function(error, team_data_array){
 	}
 	//Get any highlighted teams specified in query params
 	var param;
-	var teams_to_highlight;
+	var teams_to_highlight =[];
 	var search_values=location.search.replace('\?','').split('&');
 	var params={}
 	for(var i=0;i<search_values.length;i++){
@@ -166,7 +173,6 @@ d3.json("nfl_elo_predicted.json", function(error, team_data_array){
 	if (params["highlight"] != undefined) {
 		teams_to_highlight = params["highlight"].split(",");
 	}	
-
 	for (var i =0;i<teams_to_highlight.length;i++) {
 		if (all_teams[teams_to_highlight[i]]!= undefined)
 			team_data.push(all_teams[teams_to_highlight[i]]);
