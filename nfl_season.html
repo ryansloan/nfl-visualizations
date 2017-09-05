@@ -1,0 +1,169 @@
+<html>
+<head>
+<script src="//d3js.org/d3.v4.min.js" charset="utf-8"> </script>
+<style>
+body {
+	font-family: sans-serif;
+	color:#262626;
+}
+h1 {
+	font-size:14;
+	text-align:center;
+	margin-bottom:0px;
+}
+#vizContainer {
+	max-width:800px;
+	display:inline-block;
+	height:560px;
+}
+table {
+	font-size:14px;
+	text-align:left;
+	border-collapse: collapse;
+}
+td,th{
+	border-bottom:1px solid #dedede;
+	padding:4px;
+	padding-right:16px;
+}
+th {
+	border-bottom: 2px solid #777777;
+}
+#weekSelector {
+	background:#ffffff;
+	border:1px solid #777777;
+	color:#262626;
+	font-size:14px;
+}
+</style>
+</head>
+<body>
+	<div id='vizContainer'>
+	<h1>NFL Game Predictions - 2017 Season</h1>
+	<select id='weekSelector'></select>
+<table>
+	<thead><tr><th>Week</th><th>Away Team</th><th>Home Team</th><th>Predicted Winner (probability)</th><th>Actual Winner</th></tr></thead>
+	<tbody></tbody>
+</table>
+</body>
+<script>
+
+var bg_color_scale = d3.scaleLinear().domain([.5,1.0]).range(["#ffffff","#887CAF"]);
+
+var team_data=[];
+var all_teams={};
+var all_games;
+var selected_week=1;
+function computeWinProb(team0_elo,team1_elo,home_team_index) {
+	var home_advantage_bonus = 28; //calibrated such that equal teams leave 42% chance of Away victory
+	var factor = 200;
+	switch (home_team_index) {
+		case 0:
+			team0_elo+=home_advantage_bonus;
+			break;
+		case 1:
+			team1_elo+=home_advantage_bonus;
+			break;
+		default:
+			break;
+	}
+	var prob_win_team_0 = 1/parseFloat(1+Math.pow(10,(parseFloat(team1_elo - team0_elo)/factor)))
+	return prob_win_team_0;
+}
+
+function toggleVisibility() {
+	//toggles the visible rows to the selected_week number only
+	d3.select("table").select("tbody").selectAll("tr").style("display",function (d,i) {
+		if (d.week == selected_week) {
+			return "";
+		} else { return "none"; }
+	});
+}
+
+d3.json("nfl_elo_predicted.json", function(error, team_data_array){
+
+	//parse list of teams
+	for (var i =0;i<team_data_array.length;i++) {
+		all_teams[team_data_array[i]["team_name"]] = team_data_array[i];
+	}
+	//pull down game data for the current season
+	d3.csv("2017_season.csv",
+		function (r) {
+			return {week: parseInt(r.Week),
+					away_team: r.VisTm,
+					home_team: r.HomeTm,
+					winner: (r.VisPts!="" ? ((parseInt(r.HomePts)>parseInt(r.VisPts)) ? r.HomeTm : r.VisTm) : "")};
+		},
+		function (error, games_data) {
+
+			//If there was a week specified in the query string, set it
+			var param_strings = location.search.replace('\?','').split('&');
+			var params={};
+			for(var i=0;i<param_strings.length;i++){
+	    		param=param_strings[i].split('=');
+	    		params[param[0]]=decodeURIComponent(param[1]);
+			}
+			if (params["week"] != undefined) {
+				selected_week = params["week"];
+			}	
+			//create a row for each game:
+			//Week #, Away Team, Home Team, Predicted Winner with Probability, Actual Winner (if game has been played)
+			all_games = games_data;
+			d3.select("table").select("tbody").selectAll("tr").data(all_games).enter().insert("tr")
+			.each(function (d) {
+				d3.select(this).insert("td").text(d.week);
+				d3.select(this).insert("td").text(d.away_team);
+				d3.select(this).insert("td").text(d.home_team);
+				var home_team_win_prob = computeWinProb(all_teams[d.home_team].scores[d.week],all_teams[d.away_team].scores[d.week],0);
+				var win_prob_to_display;
+				var predicted_winner;
+				if (home_team_win_prob>.5) {
+					predicted_winner=d.home_team;
+					win_prob_to_display=home_team_win_prob;
+				} else if (home_team_win_prob<.5) {
+					predicted_winner=d.away_team;
+					win_prob_to_display=(1-home_team_win_prob);
+				} else {
+					predicted_winner="TOSSUP";
+					win_prob_to_display = .5;
+				}
+				d3.select(this).insert("td").text(predicted_winner+" ("+Math.round(win_prob_to_display*100)+"%)")
+					.style("background",bg_color_scale(win_prob_to_display)).style("color","#262626");
+				d3.select(this).insert("td").text(d.winner).style("background",function () {
+					if (d.winner == "") {
+						return "#ffffff";
+					} else if (d.winner == predicted_winner) {
+						return "#007700";
+					}
+					else {
+						return "#770000";
+					}
+				}).style("color",function() {
+					if (d.winner=="") {
+						return "";
+					} else { return "#ffffff"; }
+				});;
+			}).style("display",function (d,i) {
+				//ensure that only the first week is showing
+				if (d.week == selected_week) {
+					return "";
+				} else { return "none";}
+			});
+				//create dropdown for selecting a week and wire up the change event.
+			d3.select("#weekSelector").selectAll("option").data([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]).enter()
+				.insert("option").attr("value",function (d,i) { return d; }).text(function(d,i) { return "Week "+d; });
+				d3.select("#weekSelector").selectAll("option").each(function(d) {
+					if (d == selected_week) {
+						d3.select(this).attr("selected","true");
+					}
+				})
+			d3.select("#weekSelector").on("change",function(e) {
+					selected_week=d3.select(this).node().value;
+					toggleVisibility();
+				});
+		});
+
+});
+
+</script>
+</html>
