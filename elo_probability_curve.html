@@ -1,0 +1,118 @@
+<html>
+<head>
+<style>
+#tooltip {
+	visibility:hidden;
+	position:absolute;
+	max-width:152px;
+	min-width:140px;
+	padding:4px;
+	background:#333333;
+	font-size:12px;
+	font-family:sans-serif;
+	color:#ffffff;
+	text-align:center;
+}
+.sliderContainer {
+	width:380px;
+	padding:16px;
+	font-size:12px;
+	font-family:sans-serif;
+	text-align:left;
+}
+.slider {
+    -webkit-appearance: none;  /* Override default CSS styles for the slider because ew*/
+    appearance: none;
+    outline: none;
+    height: 8px;
+    background: #dedede;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px; 
+    height: 20px;
+    background: #403075;
+    cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+    width: 12px;
+    height: 20px; 
+    background: #403075;
+    cursor: pointer;
+}
+
+
+</style>
+<script src="//d3js.org/d3.v4.min.js" charset="utf-8"> </script>
+</head>
+<body>
+<div class='sliderContainer'><input type="range" min="1200" max="2000" value="1500" class="slider" id="rating_slider">
+<span>Elo curve for rating: <span id='score_text'>1500</span></span>
+</div>
+<svg style='width:380px;height:280px'><path fill="none" stroke="#000000" stroke-width="2px"></path></svg>
+<div id='tooltip'></div>
+<script>
+
+var xScale=d3.scaleLinear().domain([1000,2000]).range([80,340]);
+var yScale=d3.scaleLinear().domain([0,1]).range([220,20]);
+var yAxis = d3.axisLeft().scale(yScale).ticks(10).tickFormat(d3.format(".0%"));
+var xAxis = d3.axisBottom().scale(xScale).ticks(10).tickFormat(d3.format("d"));
+var coords = [];
+var current_rating=0;
+var reference_scores = [{score: 1390,team:"Cleveland Browns",color: "#EB3300"},{score: 1501,team:"Baltimore Ravens",color: "#280353"},{score: 1623,team:"New England Patriots",color: "#C8102E"}];
+
+//Elo Function
+function elo_predict(x,rating) {
+	return 1/parseFloat(1+Math.pow(Math.E,(parseFloat((x-rating)/200))));
+}
+
+
+//Define Axes
+d3.select("svg").append("g").attr("transform", "translate(50,0)").classed("yaxis",true).call(yAxis);
+d3.select(".yaxis").select(".domain").remove();
+d3.select("svg").append("g").attr("transform", "translate(0,228)").classed("xaxis",true).call(xAxis);
+d3.select(".xaxis").select(".domain").remove();
+d3.selectAll(".tick line").attr("visibility","hidden");
+d3.select("svg").append("text").text("Opponent Rating").attr("transform","translate(172,260)").style("font-family","sans-serif").style("font-size","11").attr("fill","#777777");
+d3.select("svg").append("text").text("Probability of Winning").attr("transform","translate(8,160)rotate(-90)").style("font-family","sans-serif").style("font-size","11").attr("fill","#777777");
+d3.selectAll(".yaxis, .xaxis").selectAll("text").attr("fill","#777777");
+
+//Core update function for graph
+function update(rating) {
+coords=[];
+current_rating=rating;
+	for (var i = 1000;i<2000;i+=1) {
+		coords.push([i,elo_predict(i,rating)]);
+	}
+
+	d3.select("svg").select("path").transition().attr("d",function() {
+		var d = "M"+xScale(coords[0][0])+" "+yScale(coords[0][1]);
+		for (var i = 1;i<coords.length;i++) {
+			d+=" L"+xScale(coords[i][0])+" "+yScale(coords[i][1]);
+		}
+		return d;
+	}).duration(500);
+	d3.select("svg").selectAll("circle").data(reference_scores).enter().insert("circle").on("mouseover",function(d,i) {
+		d3.select("#tooltip").style("visibility","visible").style("left",(d3.event.pageX+8) + "px").style("top",(d3.event.pageY) + "px").text(Math.round(elo_predict(d.score,current_rating)*100)+"% chance of beating the "+ d.team);
+		d3.select(this).on("mouseleave",function(d,i) {
+			d3.select("#tooltip").style("visibility","hidden");
+		});
+	});
+
+
+	d3.selectAll("circle").attr("r","4px").attr("fill",function (d,i) { return d.color; }).transition().attr("cx",function(d,i) {
+		return xScale(d.score);
+	}).attr("cy",function (d,i) { return yScale(elo_predict(d.score,current_rating));} ).attr("r","4px").duration(500);
+	d3.select("#score_text").text(rating);
+}
+
+
+d3.select("#rating_slider").on("input",function() {
+	update(this.value);
+});
+update(1500);
+</script>
+</html>
